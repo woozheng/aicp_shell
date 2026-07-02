@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>AICP Shell</title>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{font-family:-apple-system,'SF Pro Display','Helvetica Neue',sans-serif;background:#1e1e2e;color:#fff;display:flex;align-items:center;justify-content:center;min-height:100vh;flex-direction:column;gap:24px;padding:20px}
+        
+        .logo{font-size:72px;margin-bottom:4px;animation:pulse 3s ease-in-out infinite}
+        @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
+        
+        h1{font-size:32px;font-weight:300;letter-spacing:2px;background:linear-gradient(135deg,#818cf8,#34d399);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+        .sub{font-size:14px;color:#555;letter-spacing:4px;margin-top:-4px}
+        
+        .apps{display:flex;gap:32px;margin-top:16px;flex-wrap:wrap;justify-content:center}
+        .app{text-align:center;cursor:pointer;padding:24px 20px 20px;border-radius:16px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);transition:all 0.3s ease;width:120px;backdrop-filter:blur(10px)}
+        .app:hover{background:rgba(255,255,255,0.07);border-color:rgba(255,255,255,0.12);transform:translateY(-4px)}
+        .app:active{transform:scale(0.96)}
+        .app .icon{font-size:44px;display:block;margin-bottom:10px}
+        .app .name{font-size:13px;color:#aaa;font-weight:500}
+        .app .desc{font-size:10px;color:#444;margin-top:4px}
+        
+        .footer{display:flex;gap:24px;margin-top:32px;font-size:11px;color:#333;letter-spacing:1px}
+        .footer span{color:#444}
+        
+        .badge{display:inline-block;padding:2px 10px;border-radius:20px;font-size:9px;font-weight:600;letter-spacing:0.5px;text-transform:uppercase;margin-top:12px}
+        .badge-blue{background:rgba(99,102,241,0.15);color:#818cf8}
+        .badge-green{background:rgba(52,211,153,0.12);color:#34d399}
+        
+        .status{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);font-size:11px;color:#333;background:rgba(0,0,0,0.4);padding:6px 16px;border-radius:20px;backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.04)}
+        .status .dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:#34d399;margin-right:8px;animation:blink 1.5s ease-in-out infinite}
+        @keyframes blink{0%,100%{opacity:1}50%{opacity:0.2}}
+        
+        @media(max-width:500px){.apps{gap:16px}.app{width:100px;padding:16px}.app .icon{font-size:32px}h1{font-size:24px}}
+
+        /* ========== 全平台滚动/触屏/iOS兼容新增 ========== */
+        ::-webkit-scrollbar { width:6px;height:6px; }
+        ::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.18); border-radius:4px; }
+        ::-webkit-scrollbar-track { background:transparent; }
+        body { overscroll-behavior: contain; }
+        /* 触屏设备按钮放大 */
+        @media (pointer:coarse) {
+            .app { min-height: 140px; }
+        }
+        /* iOS专属修复 */
+        * {
+            -webkit-tap-highlight-color: transparent;
+            -webkit-touch-callout: none;
+        }
+        input, textarea {
+            -webkit-user-select: auto;
+        }
+        body {
+            touch-action: pan-y;
+        }
+        /* 刘海屏安全区域 */
+        @supports (padding-top: env(safe-area-inset-top)) {
+            body {
+                padding-top: env(safe-area-inset-top);
+                padding-bottom: env(safe-area-inset-bottom);
+                padding-left: env(safe-area-inset-left);
+                padding-right: env(safe-area-inset-right);
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="logo">🧠</div>
+    <h1>AICP SHELL</h1>
+    <div class="sub">让 HTML 成为你的操作系统</div>
+
+    <div class="apps" id="appGrid">
+        <div class="app" onclick="loadApp('finder')">
+            <span class="icon">🗂️</span>
+            <span class="name">Finder</span>
+            <span class="desc">文件管理器</span>
+        </div>
+        <div class="app" onclick="loadApp('god_mode')">
+            <span class="icon">🔧</span>
+            <span class="name">测试面板</span>
+            <span class="desc">70+ 硬件能力</span>
+        </div>
+    </div>
+
+    <div>
+        <span class="badge badge-blue">70+ API</span>
+        <span class="badge badge-green">6 平台</span>
+    </div>
+
+    <div class="footer">
+        <span>⚡ 协议驱动</span>
+        <span>🌐 远程加载</span>
+        <span>🤖 AI 就绪</span>
+    </div>
+
+    <div class="status" id="statusBar">
+        <span class="dot"></span>
+        容器就绪 · 等待指令
+    </div>
+
+<script>
+// ========== 全平台配置 无硬编码IP ==========
+const CONFIG = {
+    PC_LOOPBACK: "127.0.0.1",
+    SERVER_PORT: "9999"
+};
+const UA = navigator.userAgent.toLowerCase();
+
+// 平台识别标记
+const IS_ANDROID = /android/.test(UA);
+const IS_IOS_DEVICE = /iphone|ipad|ipod/.test(UA);
+const IS_IOS_SIMULATOR = IS_IOS_DEVICE && !window.standalone && window.innerWidth > 768;
+const IS_IOS_PHYSICAL = IS_IOS_DEVICE && !IS_IOS_SIMULATOR;
+const IS_MAC = /mac os x/.test(UA) && !IS_IOS_DEVICE;
+const IS_LINUX = /linux/.test(UA) && !IS_ANDROID && !IS_IOS_DEVICE;
+const IS_WIN = /windows/.test(UA);
+
+// 跳转函数：每次点击实时获取IP，兜底本机回环
+function loadApp(name) {
+    const REAL_LAN_IP = window.lanIp;
+    let previewHost;
+    if (IS_ANDROID || IS_IOS_PHYSICAL) {
+        previewHost = REAL_LAN_IP || CONFIG.PC_LOOPBACK;
+    } else {
+        previewHost = CONFIG.PC_LOOPBACK;
+    }
+    const base = window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/') + 1);
+    const params = new URLSearchParams({
+        host: previewHost,
+        port: CONFIG.SERVER_PORT,
+        android: IS_ANDROID ? "1" : "0",
+        ios: IS_IOS_DEVICE ? "1" : "0"
+    }).toString();
+    window.location.href = `${base}${name}.html?${params}`;
+}
+
+// 检测容器连接状态
+function checkShell() {
+    const statusEl = document.getElementById('statusBar');
+    if (window.mobile) {
+        statusEl.innerHTML = '<span class="dot"></span>✅ AICP 容器已连接 · 6 平台就绪';
+        return true;
+    }
+    statusEl.innerHTML = '⚠️ 在浏览器中预览 · 请用 AICP 容器打开以调用硬件';
+    return false;
+}
+
+// 快捷键
+document.addEventListener('keydown', function(e) {
+    if (e.key === '1') loadApp('finder');
+    if (e.key === '2') loadApp('god_mode');
+});
+
+checkShell();
+</script>
+</body>
+</html>

@@ -1,0 +1,95 @@
+# Miscellaneous 系统/编辑器临时文件
+*.class
+*.log
+*.pyc
+*.swp
+.DS_Store
+.atom/
+.build/
+.buildlog/
+.history
+.svn/
+.swiftpm/
+migrate_working_dir/
+*.tmp
+*.bak
+thumbs.db
+
+# 密钥、本地环境配置（禁止提交，clone后本地自行创建）
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+
+# IDE 配置（多人本地配置不入库）
+*.iml
+*.ipr
+*.iws
+.idea/
+out/
+/captures/
+.vscode/
+*.code-workspace
+
+# Flutter/Dart 编译缓存 & 依赖缓存（clone 后可自动重新拉取编译）
+**/doc/api/
+**/ios/Flutter/.last_build_id
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+/build/
+pubspec.lock
+
+# 混淆符号表、映射文件（编译时自动生成，无需入库）
+app.*.symbols
+app.*.map.json
+
+# Android 编译输出（源码保留，打包产物忽略）
+/android/app/debug
+/android/app/profile
+/android/app/release
+/android/.gradle
+/android/build/
+/android/app/build/
+/android/local.properties
+
+# iOS
+ios/Pods/
+ios/.symlinks
+ios/build/
+ios/Podfile.lock
+macos/Pods/
+macos/build/
+
+# 鸿蒙 HarmonyOS 编译缓存（关键，clone自动重建）
+oh_modules/
+hvigor/
+build/.oh-build/
+entry/build/
+.hvigor/
+local.properties
+
+# Windows/Linux 桌面端编译产物
+windows/build/
+windows/flutter/ephemeral/
+windows/runner/build/
+linux/build/
+linux/flutter/ephemeral/
+
+# 日志、运行缓存目录
+logs/
+cache/
+tmp/
+flutter_*.log
+dart_*.log
+
+# 项目内附带的Python工具缓存（你全链路配套）
+__pycache__/
+venv/
+.venv/
+*.sqlite
+*.db
+*.dump

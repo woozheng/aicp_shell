@@ -1,0 +1,742 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Finder - AICP 文件管理器</title>
+    <style>
+        /* ===== 样式保持不变 ===== */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, 'SF Pro Display', 'Helvetica Neue', sans-serif; background: #1e1e2e; color: #e0e0e0; height: 100vh; display: flex; flex-direction: column; overflow: hidden; user-select: none; }
+        
+        /* 美化滚动条 */
+        ::-webkit-scrollbar { width:6px;height:6px; }
+        ::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.15); border-radius:3px; }
+        ::-webkit-scrollbar-track { background:transparent; }
+
+        .toolbar { display: flex; align-items: center; padding: 10px 16px; background: #2a2a3e; gap: 8px; flex-shrink: 0; border-bottom: 1px solid rgba(255,255,255,0.06); }
+        .nav-btns { display: flex; gap: 4px; }
+        .nav-btns button { width: 28px; height: 28px; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; background: rgba(255,255,255,0.06); color: #aaa; display: flex; align-items: center; justify-content: center; }
+        .nav-btns button:hover { background: rgba(255,255,255,0.12); color: #fff; }
+        .path-bar { flex: 1; display: flex; align-items: center; gap: 2px; background: rgba(0,0,0,0.2); padding: 6px 12px; border-radius: 8px; font-size: 13px; overflow-x: auto; white-space: nowrap; min-width: 0; }
+        .path-segment { cursor: pointer; padding: 2px 6px; border-radius: 4px; color: #999; flex-shrink: 0; font-weight: 500; }
+        .path-segment:hover { background: rgba(255,255,255,0.08); color: #fff; }
+        .path-separator { color: #555; flex-shrink: 0; margin: 0 1px; }
+        .search-box { background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.06); color: #ccc; padding: 6px 12px 6px 28px; border-radius: 8px; font-size: 13px; width: 200px; outline: none; }
+        .search-box:focus { border-color: rgba(99,102,241,0.5); background: rgba(0,0,0,0.3); }
+        .search-wrap { position: relative; }
+        .search-wrap::before { content: '🔍'; position: absolute; left: 8px; top: 50%; transform: translateY(-50%); font-size: 11px; pointer-events: none; }
+        
+        .main { display: flex; flex: 1; overflow: hidden; }
+        
+        .sidebar { width: 200px; background: rgba(0,0,0,0.15); padding: 12px 0; overflow-y: auto; flex-shrink: 0; }
+        .sidebar-title { padding: 4px 16px 6px; font-size: 10px; color: #555; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; }
+        .sidebar-item { padding: 6px 16px; cursor: pointer; font-size: 13px; display: flex; align-items: center; gap: 8px; color: #999; border-radius: 0; margin: 0 8px; border-radius: 6px; }
+        .sidebar-item:hover { background: rgba(255,255,255,0.04); color: #ddd; }
+        .sidebar-item.active { background: rgba(99,102,241,0.2); color: #fff; }
+        .sidebar-item .icon { font-size: 15px; width: 20px; text-align: center; flex-shrink: 0; }
+        
+        .file-area { flex: 1; overflow-y: auto; padding: 16px; }
+        .file-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 12px; }
+        
+        .file-item { padding: 8px 4px; text-align: center; cursor: pointer; border-radius: 8px; transition: background 0.1s; border: 2px solid transparent; }
+        .file-item:hover { background: rgba(255,255,255,0.04); }
+        .file-item.selected { background: rgba(99,102,241,0.2); border-color: rgba(99,102,241,0.4); border-radius: 8px; }
+        .file-icon { font-size: 40px; margin-bottom: 6px; line-height: 1; }
+        .file-name { font-size: 11px; line-height: 1.3; max-height: 2.6em; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; color: #ddd; word-break: break-all; }
+        .file-size { font-size: 10px; color: #555; margin-top: 2px; }
+        
+        .status-bar { display: flex; padding: 4px 16px; background: #2a2a3e; font-size: 11px; color: #666; gap: 20px; flex-shrink: 0; }
+        .toast { position: fixed; bottom: 60px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.85); backdrop-filter: blur(10px); color: #fff; padding: 10px 20px; border-radius: 20px; font-size: 13px; z-index: 2000; opacity: 0; transition: opacity 0.3s; pointer-events: none; }
+        .toast.show { opacity: 1; }
+        .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: #555; grid-column: 1 / -1; }
+        .empty-state .icon { font-size: 60px; margin-bottom: 12px; }
+        
+        .inner-window { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 100; background: #1a1a2e; display: flex; flex-direction: column; }
+        .inner-header { display: flex; align-items: center; padding: 10px 16px; background: #2a2a3e; gap: 12px; font-size: 13px; flex-shrink: 0; border-bottom: 1px solid rgba(255,255,255,0.06); }
+        .inner-header button { background: rgba(255,255,255,0.06); border: none; color: #ccc; padding: 5px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; }
+        .inner-header button:hover { background: rgba(255,255,255,0.12); }
+        .inner-body { flex: 1; overflow: auto; display: flex; align-items: center; justify-content: center; background: #111; }
+        .inner-body textarea { white-space: pre; overflow-x: auto; }
+        .inner-body img { max-width: 100%; max-height: 100%; object-fit: contain; }
+        .inner-body video { width: 100%; height: 100%; background: #000; }
+        .inner-body iframe { width: 100%; height: 100%; border: none; }
+        
+        .ctx-menu { position: fixed; background: #2a2a3e; border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 4px 0; z-index: 1000; min-width: 180px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); backdrop-filter: blur(10px); }
+        .ctx-item { padding: 7px 16px; cursor: pointer; font-size: 12px; color: #ccc; }
+        .ctx-item:hover { background: rgba(255,255,255,0.06); color: #fff; }
+        /* 修复侧边栏、文件区域中键/滚轮滚动失效 */
+        .sidebar, .file-area {
+            overflow-y: auto !important;
+            scroll-behavior: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        /* 全局允许鼠标中键滚轮，清除阻止滚动的隐性限制 */
+        body {
+            overscroll-behavior: contain;
+        }
+        /* 修复右键菜单、内层窗口滚动 */
+        .inner-body {
+            overflow: auto !important;
+        }
+
+        /* ========== iOS/触屏全平台兼容新增 ========== */
+        * {
+            -webkit-tap-highlight-color: transparent;
+            -webkit-touch-callout: none;
+        }
+        input, textarea {
+            -webkit-user-select: auto;
+        }
+        body {
+            touch-action: pan-y;
+        }
+        /* 刘海屏安全区域适配 */
+        @supports (padding-top: env(safe-area-inset-top)) {
+            body {
+                padding-top: env(safe-area-inset-top);
+                padding-bottom: env(safe-area-inset-bottom);
+                padding-left: env(safe-area-inset-left);
+                padding-right: env(safe-area-inset-right);
+            }
+        }
+        /* 触屏设备放大文件卡片 */
+        @media (pointer:coarse) {
+            .file-grid {
+                grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+            }
+            .file-item {
+                min-height: 120px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="toolbar">
+    <div class="nav-btns">
+        <button onclick="fm.goBack()">◀</button>
+        <button onclick="fm.goForward()">▶</button>
+    </div>
+    <div class="path-bar" id="pathBar"></div>
+    <div class="search-wrap">
+        <input type="text" class="search-box" placeholder="搜索..." id="searchInput" oninput="fm.onSearchInput(this.value)">
+    </div>
+</div>
+
+<div class="main" id="mainView">
+    <div class="sidebar" id="sidebar"></div>
+    <div class="file-area" oncontextmenu="return false" onclick="fm.clearSelection()">
+        <div class="file-grid" id="fileGrid"></div>
+    </div>
+</div>
+
+<div class="status-bar">
+    <span id="itemCount">0 个项目</span>
+    <span id="selectedInfo" style="display:none;"></span>
+    <span id="searchInfo" style="display:none;color:#6366f1;"></span>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ========== 读取首页传递的跨平台环境参数 ==========
+const urlParams = new URLSearchParams(window.location.search);
+const PREVIEW_HOST = urlParams.get('host') || "127.0.0.1";
+const PREVIEW_PORT = urlParams.get('port') || "9999";
+const IS_ANDROID_ENV = urlParams.get('android') === "1";
+const IS_IOS_ENV = urlParams.get('ios') === "1";
+
+const LOCAL_SERVER = `http://${PREVIEW_HOST}:${PREVIEW_PORT}`;
+function getFilePreviewUrl(path) {
+    return `${LOCAL_SERVER}/file?path=${encodeURIComponent(path)}`;
+}
+
+// 滚轮、中键兼容
+document.addEventListener('wheel', e => {}, {passive:true});
+document.addEventListener('mousedown', e => {
+    if(e.button === 1) e.stopPropagation();
+}, {passive:true});
+
+// 移动端屏蔽系统右键弹窗
+if(IS_ANDROID_ENV || IS_IOS_ENV){
+    document.oncontextmenu = e => e.preventDefault();
+}
+
+// 自动区分系统根目录，兼容Windows/mac/Linux/iOS
+let DEFAULT_ROOT = "C:/";
+const UA = navigator.userAgent.toLowerCase();
+if(/mac os x|linux|iphone|ipad/.test(UA)){
+    DEFAULT_ROOT = "/";
+}
+
+// ============================================================
+// 🔥 AICP Shell - 统一调用封装（自动剥离外层 callbackId 包装）
+// ============================================================
+const AICP = {
+    // 调用插件，自动剥离 {callbackId, result:{...}} 外层包装
+    call: async function(plugin, action, params = {}) {
+        if (!window.mobile) {
+            throw new Error('AICP Shell 未连接');
+        }
+        let rawRes;
+        // 用动态 bridge 的 call 方法
+        if (window.mobile.call) {
+            rawRes = await window.mobile.call(plugin, action, params);
+        }
+        // 降级：直接调用
+        else if (window.mobile[plugin] && window.mobile[plugin][action]) {
+            rawRes = await window.mobile[plugin][action](params);
+        } else {
+            throw new Error(`插件 ${plugin}.${action} 不存在`);
+        }
+        // 剥离外层 callback 包装，只返回内部 result 对象
+        if (rawRes && typeof rawRes === 'object' && rawRes.result !== undefined) {
+            return rawRes.result;
+        }
+        return rawRes;
+    },
+    
+    // 文件系统
+    file_system: {
+        list: (path, recursive = false, includeHidden = false) => 
+            AICP.call('file_system', 'list', { path, recursive, includeHidden }),
+        read: (path) => 
+            AICP.call('file_system', 'read', { path }),
+        write: (path, content, append = false) => 
+            AICP.call('file_system', 'write', { path, content, append }),
+        delete: (path, recursive = false) => 
+            AICP.call('file_system', 'delete', { path, recursive }),
+        move: (from, to) => 
+            AICP.call('file_system', 'move', { from, to }),
+        copy: (from, to) => 
+            AICP.call('file_system', 'copy', { from, to }),
+        mkdir: (path, recursive = true) => 
+            AICP.call('file_system', 'mkdir', { path, recursive }),
+        info: (path) => 
+            AICP.call('file_system', 'info', { path }),
+        exists: (path) => 
+            AICP.call('file_system', 'exists', { path }),
+        search: (path, pattern, recursive = true, caseSensitive = false) => 
+            AICP.call('file_system', 'search', { path, pattern, recursive, caseSensitive }),
+    },
+    
+    // 进程
+    process: {
+        shell: (command, timeout = 30) => 
+            AICP.call('process', 'shell', { command, timeout }),
+        open: (target) => 
+            AICP.call('process', 'open', { target }),
+        kill: (target) => 
+            AICP.call('process', 'kill', typeof target === 'number' ? { pid: target } : { name: target }),
+    },
+};
+
+// ============================================================
+// 🔥 Finder 逻辑（全量跨平台修复版）
+// ============================================================
+let shellReady = false;
+
+const fm = {
+    currentPath: DEFAULT_ROOT,
+    history: [DEFAULT_ROOT],
+    historyIndex: 0,
+    selectedFiles: new Set(),
+    clipboard: null,
+    currentSearch: '',
+    _searchTimer: null,
+    _toastTimer: null,
+    _prevView: null,
+    
+    // HTML属性专用转义（防路径注入）
+    escAttr(s) {
+        return String(s)
+            .replace(/&/g,'&amp;')
+            .replace(/"/g,'&quot;')
+            .replace(/'/g,'&#039;')
+            .replace(/</g,'&lt;')
+            .replace(/>/g,'&gt;');
+    },
+    // 文本内容转义
+    esc(s) {
+        const d = document.createElement('div');
+        d.textContent = s;
+        return d.innerHTML;
+    },
+
+    async init() {
+        await this.waitForShell();
+        await this.renderSidebar();
+        await this.navigate(DEFAULT_ROOT);
+        this.bindKeys();
+    },
+    
+    async waitForShell() {
+        try {
+            await AICP.file_system.list(DEFAULT_ROOT);
+            shellReady = true;
+            console.log('✅ AICP Shell 已连接');
+            return;
+        } catch(e) {
+            console.log('⏳ 等待 Shell...');
+        }
+        for (let i = 0; i < 20; i++) {
+            await new Promise(r => setTimeout(r, 500));
+            try {
+                await AICP.file_system.list(DEFAULT_ROOT);
+                shellReady = true;
+                console.log('✅ AICP Shell 已连接');
+                return;
+            } catch(e) {}
+        }
+    },
+    
+    bindKeys() {
+        document.addEventListener('keydown', (e) => {
+            // 输入框/文本编辑器屏蔽全局快捷键
+            const tag = e.target.tagName;
+            if(tag === 'INPUT' || tag === 'TEXTAREA') return;
+
+            if (e.key === 'Delete') { e.preventDefault(); this.deleteSelected(); }
+            if (e.ctrlKey && e.key === 'c') { e.preventDefault(); this.copySelected(); }
+            if (e.ctrlKey && e.key === 'x') { e.preventDefault(); this.cutSelected(); }
+            if (e.ctrlKey && e.key === 'v') { e.preventDefault(); this.pasteFiles(); }
+            if (e.key === 'F2') { e.preventDefault(); this.renameSelected(); }
+            if (e.key === 'F5') { e.preventDefault(); this.refresh(); }
+            if (e.key === 'Backspace') { e.preventDefault(); this.goUp(); }
+            if (e.key === 'Escape') { this.closeInnerWindow(); }
+        });
+    },
+    
+    // ===== 导航 =====
+    async navigate(path) {
+        path = path.replace(/\\/g, '/');
+        if (path.length === 2 && path[1] === ':') path += '/';
+        this.currentPath = path;
+        this.selectedFiles.clear();
+        this.currentSearch = '';
+        document.getElementById('searchInput').value = '';
+        document.getElementById('searchInfo').style.display = 'none';
+        
+        if (this.historyIndex < this.history.length - 1) this.history = this.history.slice(0, this.historyIndex + 1);
+        if (this.history[this.history.length - 1] !== path) { this.history.push(path); this.historyIndex = this.history.length - 1; }
+        
+        this.renderPathBar();
+        await this.renderSidebar();
+        await this.loadFiles();
+    },
+    
+    renderPathBar() {
+        const parts = this.currentPath.split('/').filter(p => p);
+        let html = '', accumulated = '';
+        for (let i = 0; i < parts.length; i++) {
+            accumulated += (i === 0 ? parts[i] : '/' + parts[i]);
+            html += `<span class="path-segment" onclick="fm.navigate('${this.escAttr(accumulated)}')">${this.esc(parts[i])}</span>`;
+            if (i < parts.length - 1) html += '<span class="path-separator">›</span>';
+        }
+        document.getElementById('pathBar').innerHTML = html;
+    },
+    
+    async renderSidebar() {
+        const drives = await this.getDrives();
+        const sections = [
+            { title: '个人收藏', items: [
+                { icon: '🖥️', name: '桌面', path: DEFAULT_ROOT === 'C:/' ? 'C:/Users/Public/Desktop' : '/Desktop' },
+                { icon: '📥', name: '下载', path: DEFAULT_ROOT === 'C:/' ? 'C:/Users/Public/Downloads' : '/Downloads' },
+                { icon: '📄', name: '文档', path: DEFAULT_ROOT === 'C:/' ? 'C:/Users/Public/Documents' : '/Documents' },
+            ]},
+            { title: '位置', items: drives },
+        ];
+        
+        let html = '';
+        for (const s of sections) {
+            html += `<div class="sidebar-title">${this.esc(s.title)}</div>`;
+            for (const item of s.items) {
+                const active = this.currentPath === item.path ? ' active' : '';
+                html += `<div class="sidebar-item${active}" onclick="fm.navigate('${this.escAttr(item.path)}')"><span class="icon">${item.icon}</span>${this.esc(item.name)}</div>`;
+            }
+        }
+        document.getElementById('sidebar').innerHTML = html;
+    },
+    
+    async getDrives() {
+        if (!shellReady) return [{ icon: '💾', name: 'Root', path: DEFAULT_ROOT }];
+        // Windows盘符逻辑
+        if(DEFAULT_ROOT === 'C:/'){
+            try {
+                const r = await AICP.process.shell('wmic logicaldisk get name,size,freespace');
+                const lines = (r.stdout || '').trim().split('\n');
+                const drives = [];
+                for (const line of lines) {
+                    const parts = line.trim().split(/\s+/);
+                    if (parts.length >= 3 && parts[0].length === 2 && parts[0].endsWith(':')) {
+                        const name = parts[0];
+                        const free = parseInt(parts[1]);
+                        const total = parseInt(parts[2]);
+                        if (total > 0) {
+                            const freeGB = (free / 1024 / 1024 / 1024).toFixed(1);
+                            drives.push({ icon: '💾', name: `${name}  ${freeGB}GB 可用`, path: `${name}/` });
+                        }
+                    }
+                }
+                if (drives.length > 0) return drives;
+            } catch(e) {}
+            // 降级盘符
+            const drives = [];
+            for (const l of ['C','D','E']) {
+                try {
+                    await AICP.file_system.list(`${l}:/`, false);
+                    drives.push({ icon: '💾', name: `${l}:`, path: `${l}:/` });
+                } catch(e) {}
+            }
+            if (drives.length === 0) drives.push({ icon: '💾', name: 'C:', path: 'C:/' });
+            return drives;
+        }else{
+            // mac/linux/ios 单根目录
+            return [{ icon: '💽', name: '根目录 /', path: '/' }];
+        }
+    },
+    
+    async loadFiles() {
+        const grid = document.getElementById('fileGrid');
+        if (!shellReady) { grid.innerHTML = `<div class="empty-state"><div class="icon">⏳</div><div>正在连接...</div></div>`; return; }
+        
+        try {
+            const data = await AICP.file_system.list(this.currentPath, false);
+            if (!data.ok) { grid.innerHTML = `<div class="empty-state"><div class="icon">❌</div><div>无法访问</div></div>`; return; }
+            
+            const files = data.files || [];
+            if (!files.length) { grid.innerHTML = `<div class="empty-state"><div class="icon">📭</div><div>此文件夹为空</div></div>`; return; }
+            
+            const dirs = files.filter(f => f.isDirectory).sort((a,b) => a.name.localeCompare(b.name));
+            const docs = files.filter(f => !f.isDirectory).sort((a,b) => a.name.localeCompare(b.name));
+            
+            let html = '';
+            for (const f of [...dirs, ...docs]) {
+                const icon = f.isDirectory ? '📁' : this.getIcon(f.name);
+                html += `<div class="file-item" data-path="${this.escAttr(f.path)}" data-isdir="${f.isDirectory}" onclick="fm.onFileClick(event, this)" oncontextmenu="fm.showMenu(event, this)">
+                    <div class="file-icon">${icon}</div>
+                    <div class="file-name">${this.esc(f.name)}</div>
+                    ${f.isDirectory ? '' : `<div class="file-size">${this.fmtSize(f.size)}</div>`}
+                </div>`;
+            }
+            grid.innerHTML = html;
+            document.getElementById('itemCount').textContent = `${files.length} 个项目`;
+        } catch(e) { 
+            grid.innerHTML = `<div class="empty-state"><div class="icon">❌</div><div>${this.esc(e.message)}</div></div>`; 
+        }
+    },
+    
+    onFileClick(event, el) {
+        const path = el.dataset.path;
+        const isDir = el.dataset.isdir === 'true';
+        
+        if (event.ctrlKey || event.metaKey) {
+            this.selectedFiles.has(path) ? this.selectedFiles.delete(path) : this.selectedFiles.add(path);
+        } else {
+            this.selectedFiles.clear();
+            this.selectedFiles.add(path);
+        }
+        this.updateSelection();
+        
+        if(isDir) this.navigate(path);
+        else this.openFile(path);
+    },
+    
+    clearSelection() { this.selectedFiles.clear(); this.updateSelection(); },
+    
+    updateSelection() {
+        document.querySelectorAll('.file-item').forEach(el => el.classList.toggle('selected', this.selectedFiles.has(el.dataset.path)));
+        const c = this.selectedFiles.size;
+        const el = document.getElementById('selectedInfo');
+        el.style.display = c > 0 ? 'inline' : 'none';
+        if (c > 0) el.textContent = `已选择 ${c} 个`;
+    },
+    
+    openFile(path) {
+        const name = path.split('/').pop();
+        const ext = name.split('.').pop()?.toLowerCase();
+        const url = getFilePreviewUrl(path);
+        
+        if (['txt','md','json','xml','csv','py','js','ts','go','rs','java','html','css','log'].includes(ext)) {
+            this.openInnerWindow('text', url, name, path);
+        } else if (['mp4','webm','mkv','avi','mov'].includes(ext)) {
+            this.openInnerWindow('video', url, name, path);
+        } else if (['mp3','wav','flac','aac','ogg'].includes(ext)) {
+            this.openInnerWindow('audio', url, name, path);
+        } else if (['jpg','jpeg','png','gif','svg','webp','bmp','ico'].includes(ext)) {
+            this.openInnerWindow('image', url, name, path);
+        } else if (ext === 'pdf') {
+            this.openInnerWindow('pdf', url, name, path);
+        } else if (ext === 'lnk') {
+            this.openShortcut(path);
+        } else {
+            AICP.process.open(path).then(() => {
+                this.showToast('已用默认程序打开');
+            }).catch(() => {
+                this.showToast('无法打开');
+            });
+        }
+    },
+    
+    async openShortcut(path) {
+        try {
+            const r = await AICP.process.shell(`powershell -Command "(New-Object -COM WScript.Shell).CreateShortcut('${this.escAttr(path)}').TargetPath"`);
+            const target = r.stdout?.trim();
+            if (target && target !== path) this.openFile(target);
+        } catch(e) { 
+            AICP.process.open(path).catch(() => this.showToast('无法打开'));
+        }
+    },
+    
+    openInnerWindow(type, url, name, path) {
+        this._prevView = document.getElementById('mainView').innerHTML;
+        
+        let body = '';
+        if (type === 'text') {
+            fetch(url).then(r => r.text()).then(async content => {
+                const innerBody = document.getElementById('innerBody');
+                if (!innerBody) return;
+                innerBody.innerHTML = `<textarea id="editor" style="width:100%;height:100%;background:#1e1e2e;color:#e0e0e0;border:none;padding:16px;font-family:'SF Mono',monospace;font-size:13px;resize:none;outline:none;line-height:1.6;">${this.esc(content)}</textarea>`;
+                const saveBtn = document.getElementById('saveBtn');
+                if (saveBtn) {
+                    saveBtn.style.display = 'inline';
+                    saveBtn.onclick = async () => {
+                        const txt = document.getElementById('editor').value;
+                        await AICP.file_system.write(path, txt, false);
+                        this.showToast('已保存');
+                        this.refresh();
+                    };
+                }
+            });
+        } else if (type === 'video') {
+            body = `<video src="${this.escAttr(url)}" controls autoplay style="width:100%;height:100%;"></video>`;
+        } else if (type === 'audio') {
+            body = `<div style="text-align:center;padding-top:80px;"><div style="font-size:80px;">🎵</div><div style="color:#ccc;margin:20px;font-size:14px;">${this.esc(name)}</div><audio src="${this.escAttr(url)}" controls autoplay style="width:80%;max-width:400px;"></div>`;
+        } else if (type === 'image') {
+            body = `<img src="${this.escAttr(url)}" style="max-width:100%;max-height:100%;object-fit:contain;">`;
+        } else if (type === 'pdf') {
+            body = `<iframe src="${this.escAttr(url)}" style="width:100%;height:100%;border:none;"></iframe>`;
+        }
+        
+        document.getElementById('mainView').innerHTML = `
+            <div class="inner-window">
+                <div class="inner-header">
+                    <button onclick="fm.closeInnerWindow()">← 返回</button>
+                    <span>${this.esc(name)}</span>
+                    <span style="flex:1;"></span>
+                    <button id="saveBtn" style="display:none">保存</button>
+                </div>
+                <div class="inner-body" id="innerBody">${body}</div>
+            </div>`;
+    },
+    
+    closeInnerWindow() {
+        if (this._prevView) {
+            document.getElementById('mainView').innerHTML = this._prevView;
+            this._prevView = null;
+            this.renderSidebar();
+            this.renderPathBar();
+            this.updateSelection();
+        }
+    },
+    
+    showMenu(event, el) {
+        event.preventDefault(); event.stopPropagation();
+        const path = el.dataset.path;
+        // 修复：Ctrl多选右键不清除原有选中
+        if (!event.ctrlKey && !event.metaKey) {
+            this.selectedFiles.clear();
+        }
+        this.selectedFiles.add(path);
+        this.updateSelection();
+        
+        const menu = document.createElement('div');
+        menu.className = 'ctx-menu';
+        // 防止右键菜单超出可视区域
+        const menuW = 180;
+        const menuH = 300;
+        let x = event.clientX;
+        let y = event.clientY;
+        if(x + menuW > window.innerWidth) x = window.innerWidth - menuW - 10;
+        if(y + menuH > window.innerHeight) y = window.innerHeight - menuH - 10;
+        menu.style.left = x + 'px';
+        menu.style.top = y + 'px';
+        
+        const items = [
+            el.dataset.isdir === 'true' ? ['📂 打开', () => fm.navigate(path)] : ['📄 打开', () => fm.openFile(path)],
+            ['📋 复制', () => fm.copySelected()],
+            ['✂️ 剪切', () => fm.cutSelected()],
+            fm.clipboard?.files?.length ? ['📌 粘贴', () => fm.pasteFiles()] : null,
+            ['🗑️ 删除', () => fm.deleteSelected()],
+            ['✏️ 重命名', () => fm.renameSelected()],
+            ['📁 新建文件夹', () => fm.createFolder()],
+        ].filter(a => a);
+        
+        for (const [label, fn] of items) {
+            const item = document.createElement('div');
+            item.className = 'ctx-item';
+            item.textContent = label;
+            item.onclick = () => { menu.remove(); fn(); };
+            menu.appendChild(item);
+        }
+        document.body.appendChild(menu);
+        // 点击任意位置关闭菜单
+        setTimeout(() => document.addEventListener('click', () => menu.remove(), { once: true }), 0);
+    },
+    
+    copySelected() { this.clipboard = { action: 'copy', files: [...this.selectedFiles] }; this.showToast('已复制'); },
+    cutSelected() { this.clipboard = { action: 'cut', files: [...this.selectedFiles] }; this.showToast('已剪切'); },
+    
+    async pasteFiles() {
+        if (!this.clipboard?.files?.length) return;
+        let c = 0;
+        for (const src of this.clipboard.files) {
+            const fileName = src.split('/').pop();
+            const targetPath = this.currentPath + '/' + fileName;
+            // 同名覆盖提示
+            try {
+                const existRes = await AICP.file_system.exists(targetPath);
+                if(existRes && !confirm(`文件「${fileName}」已存在，是否覆盖？`)) continue;
+
+                if (this.clipboard.action === 'cut') {
+                    await AICP.file_system.move(src, targetPath);
+                } else {
+                    await AICP.file_system.copy(src, targetPath);
+                }
+                c++;
+            } catch(e) {}
+        }
+        if (this.clipboard.action === 'cut') this.clipboard = null;
+        await this.refresh();
+        this.showToast(`已粘贴 ${c} 个`);
+    },
+    
+    async deleteSelected() {
+        if (!this.selectedFiles.size) return;
+        if (!confirm(`确定删除 ${this.selectedFiles.size} 个项目？`)) return;
+        for (const p of this.selectedFiles) { 
+            try { await AICP.file_system.delete(p, true); } catch(e) {} 
+        }
+        this.selectedFiles.clear();
+        await this.refresh();
+        this.showToast('已删除');
+    },
+    
+    renameSelected() {
+        if (this.selectedFiles.size !== 1) return;
+        const path = [...this.selectedFiles][0];
+        const old = path.split('/').pop();
+        const n = prompt('新名称:', old);
+        if (!n || n === old) return;
+        // Windows非法文件名拦截
+        const invalidReg = /[\\\/:*?"<>|]/;
+        if(invalidReg.test(n)) {
+            this.showToast('名称不能包含 \\ / : * ? " < > |');
+            return;
+        }
+        const newPath = path.substring(0, path.lastIndexOf('/') + 1) + n;
+        AICP.file_system.move(path, newPath).then(() => { 
+            this.refresh(); 
+            this.showToast('已重命名'); 
+        }).catch(e => this.showToast('重命名失败'));
+    },
+    
+    async createFolder() {
+        const n = prompt('文件夹名称:');
+        if (!n) return;
+        const invalidReg = /[\\\/:*?"<>|]/;
+        if(invalidReg.test(n)) {
+            this.showToast('名称包含非法字符');
+            return;
+        }
+        try { 
+            await AICP.file_system.mkdir(this.currentPath + '/' + n, true); 
+            await this.refresh(); 
+            this.showToast('已创建'); 
+        } catch(e) { this.showToast('创建失败'); }
+    },
+    
+    onSearchInput(v) { clearTimeout(this._searchTimer); this._searchTimer = setTimeout(() => this.doSearch(v), 300); },
+    
+    async doSearch(q) {
+        if (!q?.trim()) { this.currentSearch = ''; document.getElementById('searchInfo').style.display = 'none'; await this.loadFiles(); return; }
+        this.currentSearch = q;
+        try {
+            const data = await AICP.file_system.search(this.currentPath, q, true, false);
+            const files = data.files || [];
+            let html = '';
+            // 修复：区分文件/文件夹，渲染正确图标
+            for (const f of files.slice(0, 200)) {
+                let p, n, isDir = false;
+                if (typeof f === 'string') {
+                    p = f;
+                    n = f.split('/').pop();
+                } else {
+                    p = f.path;
+                    n = f.name;
+                    isDir = !!f.isDirectory;
+                }
+                html += `<div class="file-item" data-path="${this.escAttr(p)}" data-isdir="${isDir}" onclick="fm.onFileClick(event, this)">
+                    <div class="file-icon">${isDir ? '📁' : this.getIcon(n)}</div>
+                    <div class="file-name">${this.esc(p)}</div>
+                </div>`;
+            }
+            document.getElementById('fileGrid').innerHTML = html || `<div class="empty-state"><div class="icon">🔍</div><div>未找到匹配项目</div></div>`;
+            document.getElementById('searchInfo').style.display = 'inline';
+            document.getElementById('searchInfo').textContent = `"${this.esc(q)}" — ${files.length} 个结果`;
+            document.getElementById('itemCount').textContent = `${files.length} 个`;
+        } catch(e) {
+            document.getElementById('fileGrid').innerHTML = `<div class="empty-state"><div class="icon">❌</div><div>搜索失败</div></div>`;
+        }
+    },
+    
+    goBack() { if (this.historyIndex > 0) { this.historyIndex--; this.navigate(this.history[this.historyIndex]); } },
+    goForward() { if (this.historyIndex < this.history.length - 1) { this.historyIndex++; this.navigate(this.history[this.historyIndex]); } },
+    goUp() {
+        // 修复上级路径逻辑
+        const parts = this.currentPath.split('/').filter(s => s);
+        if (parts.length <= 1) return;
+        parts.pop();
+        const newPath = parts.join('/') + '/';
+        this.navigate(newPath);
+    },
+    async refresh() { this.currentSearch ? await this.doSearch(this.currentSearch) : await this.navigate(this.currentPath); },
+    
+    getIcon(name) {
+        const ext = name.split('.').pop()?.toLowerCase();
+        const m = { 
+            'docx':'📄','xlsx':'📊','pptx':'📑','pdf':'📕', 
+            'mp4':'🎬','avi':'🎬','mkv':'🎬','mov':'🎬', 
+            'mp3':'🎵','wav':'🎵','flac':'🎵', 
+            'jpg':'🖼️','jpeg':'🖼️','png':'🖼️','gif':'🖼️','svg':'🎨', 
+            'py':'🐍','js':'💛','ts':'💙','go':'🔵','rs':'🦀','exe':'⚙️',
+            'zip':'📦','rar':'📦','7z':'📦',
+            'txt':'📝','md':'📝','json':'📝','html':'🌐','css':'🎨' 
+        };
+        return m[ext] || '📄';
+    },
+    
+    fmtSize(b) { 
+        if (!b) return ''; 
+        if (b<1024) return b+' B'; 
+        if (b<1048576) return (b/1024).toFixed(1)+' KB'; 
+        if (b<1073741824) return (b/1048576).toFixed(1)+' MB'; 
+        return (b/1073741824).toFixed(2)+' GB'; 
+    },
+    showToast(msg) { 
+        const t = document.getElementById('toast'); 
+        t.textContent = msg; 
+        t.classList.add('show'); 
+        clearTimeout(this._toastTimer); 
+        this._toastTimer = setTimeout(() => t.classList.remove('show'), 2000); 
+    },
+};
+
+// ============================================================
+// 🔥 启动
+// ============================================================
+fm.init();
+</script>
+</body>
+</html>
