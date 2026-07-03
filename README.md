@@ -60,9 +60,9 @@
 
 | 平台 | 适配状态 | 补充说明 | 下载 |
 |-----|---------|---------|------|
-| Android | ✅ 完整可用 | 蓝牙、音频、扫码、定位、通知全部插件适配 | [⬇️ APK](链接) |
-| HarmonyOS 鸿蒙 | ⏳ 待编译打包 | 权限分层适配，全硬件 API 兼容 | [📖 编译说明](docs/ohos_config.md) |
-| Windows | ✅ 完整可用 | 文件系统、进程命令、窗口管理 | [⬇️ EXE](链接) |
+| Android | ✅ 完整可用 | 蓝牙、音频、扫码、定位、通知全部插件适配 | [⬇️ APK](./release/android/app-release.apk) |
+| HarmonyOS 鸿蒙 | ⏳ 待编译打包 | 权限分层适配，全硬件 API 兼容 | [📖 编译说明](./docs/ohos_config.md) |
+| Windows | ✅ 完整可用 | 文件系统、进程命令、窗口管理 | [⬇️ EXE](./release/windows/aicp_shell_windows_v1.0.0.zip) |
 | iOS | ⏳ 待编译 | 底层协议已适配 | 待发布 |
 | macOS | ⏳ 待编译 | 底层协议已适配 | 待发布 |
 | Linux | ⏳ 待编译 | 底层协议已适配 | 待发布 |
@@ -100,7 +100,9 @@ flutter run
 ---
 ## AICP_shell SDK
 
-### AI学习调用硬件的的SDK ，仅仅一个[功能测试html](./assets/god_mode.html)文件，AI 看完秒懂。
+### AI学习调用硬件的的SDK 
+
+仅仅一个[功能测试html](./assets/god_mode.html)文件，AI 看完秒懂。
 
 ### 扩展aicp_shell的底层功能
 
