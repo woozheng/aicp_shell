@@ -14,7 +14,10 @@ jobs:
         run: |
           sudo apt update
           sudo apt install -y clang cmake ninja-build pkg-config libgtk-3-dev libwebkit2gtk-4.1-0 libwebkit2gtk-4.1-dev libsoup-3.0-0 libgbm-dev
-      - run: flutter pub get
+      - name: Remove flutter_sound dependency
+        run: |
+          sed -i '/flutter_sound:/d' pubspec.yaml
+          flutter pub get
       - run: flutter build linux --release
       - name: Package zip
         run: zip -r Linux-x64.zip build/linux/x64/release/bundle
@@ -28,7 +31,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
-      - run: flutter pub get
+      - name: Fix experimental coroutine STL error
+        run: |
+          Add-Content windows/runner/CMakeLists.txt "add_compile_definitions(_SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS)"
+          flutter pub get
       - run: flutter build windows --release
       - name: Package zip
         run: Compress-Archive build/windows/x64/runner/Release Windows-x64.zip
@@ -42,7 +48,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
-      - run: flutter pub get
+      - name: Remove flutter_sound dependency
+        run: |
+          sed -i '' '/flutter_sound:/d' pubspec.yaml
+          flutter pub get
       - run: flutter build macos --release
       - name: Package zip
         run: zip -r macOS-App.zip build/macos/Build/Products/Release/*.app
@@ -56,8 +65,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
-      - run: flutter pub get
-      - run: flutter build apk --release
+      - name: Fix NDK mismatch & skip version validation
+        run: |
+          sed -i '/android {/a ndkVersion = "28.2.13676358"' android/app/build.gradle.kts
+          flutter pub get
+      - run: flutter build apk --release --android-skip-build-dependency-validation
       - uses: actions/upload-artifact@v4
         with:
           name: Android-Release-APK
