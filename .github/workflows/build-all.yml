@@ -65,14 +65,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
-      - name: Fix NDK + force lower androidx versions
+      - name: Upgrade AGP to match androidx version & set NDK
         run: |
+          # 升级根目录build.gradle.kts classpath AGP到8.9.1
+          sed -i 's/classpath "com.android.tools.build:gradle:.*"/classpath "com.android.tools.build:gradle:8.9.1"/' android/build.gradle.kts
+          # 设置NDK版本
           sed -i '/android {/a ndkVersion = "28.2.13676358"' android/app/build.gradle.kts
-          # 强制锁定低版本androidx，适配AGP 8.7.0
-          sed -i '/dependencies {/a constraints { implementation("androidx.core:core-ktx:1.17.0") implementation("androidx.activity:activity-ktx:1.9.3") implementation("androidx.browser:browser:1.8.0") }' android/app/build.gradle.kts
-          echo "android.disableAarMetadataCheck=true" >> android/gradle.properties
           flutter pub get
-      - run: flutter build apk --release --android-skip-build-dependency-validation --no-tree-shake-icons
+      - run: flutter build apk --release --no-tree-shake-icons
       - uses: actions/upload-artifact@v4
         with:
           name: Android-Release-APK
