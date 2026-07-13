@@ -5,6 +5,7 @@ plugins {
 }
 
 android {
+    ndkVersion = "28.2.13676358" // 加这里
     namespace = "com.example.aicp_shell"
     compileSdk = 36 // 固定36，和camera插件要求对齐
 
