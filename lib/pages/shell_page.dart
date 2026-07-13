@@ -29,7 +29,6 @@ class _ShellPageState extends State<ShellPage> {
   String _lanIp = "";
   bool _loading = true;
 
-  // 新增：全局key，用来调用WebView前进/后退/加载地址
   final GlobalKey<WebViewContainerState> _webKey = GlobalKey();
 
   @override
@@ -40,7 +39,6 @@ class _ShellPageState extends State<ShellPage> {
   }
 
   Future<void> _initPage() async {
-    // 仅桌面获取局域网IP
     if (!Platform.isAndroid && !Platform.isIOS) {
       await _fetchLanIp();
     } else {
@@ -75,7 +73,7 @@ class _ShellPageState extends State<ShellPage> {
   }
 
   Future<void> _loadConfig() async {
-    // 移动端固定本机http服务，统一127.0.0.1
+    // 移动端固定本机http服务
     if (Platform.isAndroid || Platform.isIOS) {
       _homeUrl = 'http://127.0.0.1:9999/index.html';
       _currentUrl = _homeUrl;
@@ -87,7 +85,19 @@ class _ShellPageState extends State<ShellPage> {
       return;
     }
 
-    // ========== 桌面原有逻辑 ==========
+    // Linux/WSL 强制内置本地网页，不读取配置、不弹窗跳转设置
+    if (Platform.isLinux) {
+      _homeUrl = 'http://127.0.0.1:9999/index.html';
+      _currentUrl = _homeUrl;
+      _urlController.text = _currentUrl;
+      setState(() {
+        _config = ServerConfig(mode: "local", url: _homeUrl, token: "");
+      });
+      print('🌐 Linux/WSL 强制本地内置服务');
+      return;
+    }
+
+    // Windows/macOS 保留原有读取外部配置逻辑
     final config = widget.config ?? await ServerConfig.load();
     if (config == null || config.url.isEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) async {
@@ -136,7 +146,7 @@ class _ShellPageState extends State<ShellPage> {
       _homeUrl = uri.toString();
       _currentUrl = _homeUrl;
       _urlController.text = _currentUrl;
-      print('🌐 桌面加载地址: $_currentUrl');
+      print('🌐 Windows/macOS 加载外部地址: $_currentUrl');
     } catch (e) {
       WidgetsBinding.instance.addPostFrameCallback((_) async {
         await showDialog(
@@ -158,7 +168,6 @@ class _ShellPageState extends State<ShellPage> {
     }
   }
 
-  // 重写：直接调用webview加载，不再刷新页面销毁历史栈
   Future<void> _navigateTo(String url) async {
     final input = url.trim();
     if (input.isEmpty) return;
@@ -170,7 +179,6 @@ class _ShellPageState extends State<ShellPage> {
       targetUrl = 'https://$targetUrl';
     }
 
-    // 调用WebView内部跳转方法
     await _webKey.currentState?.loadUrl(targetUrl);
 
     setState(() {
@@ -326,7 +334,6 @@ class _ShellPageState extends State<ShellPage> {
     }
   }
 
-  // 刷新按钮调用容器刷新
   void _reload() async {
     await _webKey.currentState?.reload();
   }
@@ -392,7 +399,6 @@ class _ShellPageState extends State<ShellPage> {
                   ),
                 ),
 
-                // 新增：后退按钮
                 IconButton(
                   icon: const Icon(Icons.arrow_back_ios, size: 16),
                   tooltip: "上一页",
@@ -402,7 +408,6 @@ class _ShellPageState extends State<ShellPage> {
                     minimumSize: Size.zero,
                   ),
                 ),
-                // 新增：前进按钮
                 IconButton(
                   icon: const Icon(Icons.arrow_forward_ios, size: 16),
                   tooltip: "下一页",
@@ -465,7 +470,6 @@ class _ShellPageState extends State<ShellPage> {
             ),
           ),
           Expanded(
-            // 替换为全局key，移除ValueKey(_reloadCounter)
             child: WebViewContainer(
               key: _webKey,
               url: _currentUrl,

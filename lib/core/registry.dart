@@ -22,7 +22,7 @@ import 'package:aicp_shell/plugins/mobile/vibrate.dart';
 import 'package:aicp_shell/plugins/mobile/contacts.dart';
 import 'package:aicp_shell/plugins/mobile/bluetooth.dart';
 import 'package:aicp_shell/plugins/mobile/mobile_process.dart';
-import 'package:aicp_shell/plugins/mobile/audio.dart';
+
 // 平台判断
 bool get isAndroid => Platform.isAndroid;
 bool get isIOS => Platform.isIOS;
@@ -54,7 +54,7 @@ class PluginRegistry {
     register('mobile/vibrate', VibratePlugin.execute);
     register('mobile/contacts', ContactsPlugin.execute);
     register('mobile/bluetooth', BluetoothPlugin.execute);
-    register('mobile/audio', AudioPlugin.execute);
+
 
     // 移动端跳转插件 全设备注册
     register('mobile/mobile_process', MobileProcessPlugin.execute);

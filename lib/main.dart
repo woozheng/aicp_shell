@@ -9,18 +9,16 @@ import 'package:window_manager/window_manager.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // 仅桌面执行窗口逻辑
   if (!Platform.isAndroid && !Platform.isIOS) {
     await windowManager.ensureInitialized();
-    // WindowOptions 仅配置基础尺寸居中，无maximize参数
     WindowOptions windowOptions = const WindowOptions(
       size: Size(1280, 720),
       center: true,
+      minimumSize: Size(1000, 600),
     );
     windowManager.waitUntilReadyToShow(windowOptions, () async {
       await windowManager.show();
-      // 单独调用最大化方法
-      await windowManager.maximize();
+      await windowManager.focus();
     });
   }
 
@@ -35,7 +33,13 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'AICP Mobile Shell',
+      debugShowCheckedModeBanner: false,
       theme: ThemeData(
+        fontFamilyFallback: [
+          "WenQuanYi Zen Hei",
+          "Noto Sans CJK SC",
+          "sans-serif",
+        ],
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
       ),
@@ -44,7 +48,6 @@ class MyApp extends StatelessWidget {
   }
 }
 
-// SplashPage 代码不变，沿用你原有代码
 class SplashPage extends StatefulWidget {
   const SplashPage({super.key});
 
@@ -98,10 +101,7 @@ class _SplashPageState extends State<SplashPage> {
           children: [
             const CircularProgressIndicator(),
             const SizedBox(height: 16),
-            Text(
-              '加载中...',
-              style: TextStyle(color: Colors.grey.shade600),
-            ),
+            Text('加载中...', style: TextStyle(color: Colors.grey.shade600)),
           ],
         ),
       ),
