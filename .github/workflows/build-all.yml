@@ -29,7 +29,6 @@ jobs:
   build-windows:
     runs-on: windows-latest
     env:
-      # 全局注入屏蔽废弃协程断言宏，所有插件/主程序均生效
       CXXFLAGS: "-D_SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS"
       CFLAGS: "-D_SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS"
     steps:
@@ -66,9 +65,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
-      - name: Fix NDK & disable AAR metadata version check
+      - name: Fix NDK + force lower androidx versions
         run: |
           sed -i '/android {/a ndkVersion = "28.2.13676358"' android/app/build.gradle.kts
+          # 强制锁定低版本androidx，适配AGP 8.7.0
+          sed -i '/dependencies {/a constraints { implementation("androidx.core:core-ktx:1.17.0") implementation("androidx.activity:activity-ktx:1.9.3") implementation("androidx.browser:browser:1.8.0") }' android/app/build.gradle.kts
           echo "android.disableAarMetadataCheck=true" >> android/gradle.properties
           flutter pub get
       - run: flutter build apk --release --android-skip-build-dependency-validation --no-tree-shake-icons
